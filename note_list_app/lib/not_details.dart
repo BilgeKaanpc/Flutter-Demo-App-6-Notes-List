@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:note_list_app/main.dart';
 import 'package:note_list_app/models/kategori.dart';
+import 'package:note_list_app/models/note.dart';
 import 'package:note_list_app/utils/database_helper.dart';
 
 class NotDetail extends StatefulWidget {
   String title;
-  NotDetail(this.title, {super.key});
+  Not? duzenlenecekNot;
+  NotDetail(this.title, this.duzenlenecekNot, {super.key});
 
   @override
   State<NotDetail> createState() => _NotDetailState();
@@ -17,6 +20,8 @@ class _NotDetailState extends State<NotDetail> {
   int kategoriID = 1;
   static var oncelikler = ["Düşük", "Orta", "Yüksek"];
   int secilenOncelik = 0;
+  String notBaslik = "";
+  String notIcerik = "";
 
   @override
   void initState() {
@@ -24,22 +29,32 @@ class _NotDetailState extends State<NotDetail> {
     setState(() {
       allKategori = <Kategori>[];
       db = DatabaseHelper();
-      Create();
+      create();
     });
   }
 
-  Future<void> Create() async {
+  Future<void> create() async {
     await db.kategorileriGetir().then((value) {
       for (Map<String, dynamic> maps in value) {
         allKategori.add(Kategori.fromMap(maps));
       }
     });
+
+    if (widget.duzenlenecekNot != null) {
+      kategoriID = widget.duzenlenecekNot!.kategoriID!;
+      secilenOncelik = widget.duzenlenecekNot!.notOncelik!;
+    } else {
+      kategoriID = 1;
+      secilenOncelik = 0;
+    }
+
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: Text(widget.title),
         ),
@@ -55,7 +70,7 @@ class _NotDetailState extends State<NotDetail> {
                       Row(
                         children: [
                           const Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               "Kategori:",
                               style: TextStyle(fontSize: 24),
@@ -92,6 +107,18 @@ class _NotDetailState extends State<NotDetail> {
                       Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: TextFormField(
+                          initialValue: widget.duzenlenecekNot != null
+                              ? widget.duzenlenecekNot!.notBaslik
+                              : "",
+                          validator: (text) {
+                            if (text!.length < 3) {
+                              return "En az 3 karakter olmali";
+                            }
+                            return null;
+                          },
+                          onSaved: (newValue) {
+                            notBaslik = newValue!;
+                          },
                           decoration: const InputDecoration(
                             hintText: "Not başliğini giriniz",
                             labelText: "Başlik",
@@ -102,6 +129,13 @@ class _NotDetailState extends State<NotDetail> {
                       Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: TextFormField(
+                          initialValue: widget.duzenlenecekNot != null
+                              ? widget.duzenlenecekNot!.notIcerik
+                              : "",
+                          onSaved: (newValue) {
+                            notIcerik = newValue!;
+                          },
+                          maxLines: 4,
                           decoration: const InputDecoration(
                             hintText: "Not içeriğini giriniz",
                             labelText: "İçerik",
@@ -154,6 +188,77 @@ class _NotDetailState extends State<NotDetail> {
                           ),
                         ],
                       ),
+                      ButtonBar(
+                        alignment: MainAxisAlignment.spaceEvenly,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            style: const ButtonStyle(
+                                backgroundColor:
+                                    MaterialStatePropertyAll(Colors.grey)),
+                            child: const Text("Vazgeç"),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              if (formKey.currentState!.validate()) {
+                                formKey.currentState!.save();
+
+                                var suan = DateTime.now();
+                                debugPrint(db.dataFormat(suan));
+
+                                if (widget.duzenlenecekNot == null) {
+                                  db
+                                      .notEkle(Not(
+                                          kategoriID: kategoriID,
+                                          notBaslik: notBaslik,
+                                          notIcerik: notIcerik,
+                                          notTarih: suan.toString(),
+                                          notOncelik: secilenOncelik))
+                                      .then((value) {
+                                    if (value != 0) {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                const MyApp()),
+                                      );
+                                    }
+                                  });
+                                } else {
+                                  db
+                                      .notGuncelle(Not.withID(
+                                          notID: widget.duzenlenecekNot!.notID,
+                                          kategoriID: kategoriID,
+                                          notBaslik: notBaslik,
+                                          notIcerik: notIcerik,
+                                          notTarih: suan.toString(),
+                                          notOncelik: secilenOncelik))
+                                      .then((value) {
+                                    if (value != 0) {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                const MyApp()),
+                                      );
+                                    }
+                                  });
+                                }
+                              }
+                            },
+                            style: const ButtonStyle(
+                                backgroundColor:
+                                    MaterialStatePropertyAll(Colors.green)),
+                            child: const Text(
+                              "Kaydet",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      )
                     ],
                   ),
                 ),
@@ -168,7 +273,7 @@ class _NotDetailState extends State<NotDetail> {
           padding: const EdgeInsets.all(8.0),
           child: Text(
             e.kategoriBaslik.toString(),
-            style: TextStyle(fontSize: 20),
+            style: const TextStyle(fontSize: 20),
           ),
         ),
       );

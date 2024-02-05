@@ -2,6 +2,7 @@
 class Not {
   int? notID;
   int? kategoriID;
+  String? kategoriBaslik;
   String? notBaslik;
   String? notIcerik;
   String? notTarih;
@@ -37,6 +38,7 @@ class Not {
   Not.fromMap(Map<String, dynamic> map) {
     notID = map["notID"];
     kategoriID = map["kategoriID"];
+    kategoriBaslik = map["kategoriBaslik"];
     notBaslik = map["notBaslik"];
     notIcerik = map["notIcerik"];
     notTarih = map["notTarih"];
